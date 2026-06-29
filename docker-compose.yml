@@ -43,6 +43,62 @@ services:
     networks:
       - oil-surveillance-net
 
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: admin12345
+      DOCKER_INFLUXDB_INIT_ORG: oil-surveillance
+      DOCKER_INFLUXDB_INIT_BUCKET: well-data-${ENV:-dev}
+      DOCKER_INFLUXDB_INIT_RETENTION: 7d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: oil-surveillance-token
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8086/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    mem_limit: 512m
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - oil-surveillance-net
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin12345
+      INFLUXDB_BUCKET: well-data-${ENV:-dev}
+      INFLUXDB_TOKEN: oil-surveillance-token
+      GF_DASHBOARDS_MIN_REFRESH_INTERVAL: 5s
+
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    mem_limit: 512m
+    networks:
+      - oil-surveillance-net
+
 networks:
   oil-surveillance-net:
     driver: bridge
+
+volumes:
+  influxdb-data:
+  grafana-data:

@@ -1,0 +1,20 @@
+project:
+  name: oil-production-surveillance
+  region: ca-central-1
+
+kafka:
+  broker: localhost:9092
+  topic: well-production-data
+  consumer_group_influx: influx-writer
+  consumer_group_spark: spark-processor
+
+influxdb:
+  url: http://localhost:8086
+  token: oil-surveillance-token
+  org: oil-surveillance
+  bucket: well-data
+
+aws:
+  s3_bucket: ""
+  sns_topic_arn: ""
+  sqs_queue_url: ""

@@ -1,9 +1,11 @@
 from kafka import KafkaProducer
 import json
+import os
 import time
 import random
+import yaml
 from datetime import datetime, timezone
-import os
+from anomaly_injector import inject_anomaly
 
 
 # Load well baselines from config
@@ -12,52 +14,24 @@ with open(baselines_path) as f:
     WELLS = json.load(f)
 
 
+# Load config
+config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yml")
+with open(config_path) as f:
+    config = yaml.safe_load(f)
+
+# Environment
+env = os.getenv("ENV", "dev")
+
 # Kafka producer configuration
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers=config["kafka"]["broker"],
     value_serializer=lambda v: json.dumps(v).encode('utf-8'),
     key_serializer=lambda k: k.encode('utf-8')
-    )
+)
 
 
-def inject_anomaly(reading, baselines):
-    """Randomly inject a realistic anomaly into the reading."""
-    anomaly_type = random.choice([
-        "pressure_drop",
-        "vibration_spike",
-        "h2s_leak",
-        "pump_failure",
-        "water_cut_surge",
-        "gas_breakthrough",
-        "sand_erosion",
-        "casing_integrity_loss",
-    ])
-
-    if anomaly_type == "pressure_drop":
-        reading["wellhead_pressure"] = round(baselines["wellhead_pressure"] * random.uniform(0.5, 0.7), 2)
-        reading["tubing_pressure"] = round(baselines["tubing_pressure"] * random.uniform(0.5, 0.7), 2)
-    elif anomaly_type == "vibration_spike":
-        reading["vibration_level"] = round(baselines["vibration_level"] * random.uniform(3, 5), 2)
-    elif anomaly_type == "h2s_leak":
-        reading["h2s_concentration"] = round(random.uniform(15, 80), 2)
-    elif anomaly_type == "pump_failure":
-        reading["motor_current"] = 0
-        reading["pump_speed"] = 0
-        reading["oil_flow_rate"] = 0
-        reading["well_status"] = "shut-in"
-    elif anomaly_type == "water_cut_surge":
-        reading["water_cut"] = round(min(baselines["water_cut"] * random.uniform(2, 3), 95), 2)
-        reading["water_flow_rate"] = round(baselines["water_flow_rate"] * random.uniform(2, 3), 2)
-    elif anomaly_type == "gas_breakthrough":
-        reading["gas_oil_ratio"] = round(baselines["gas_oil_ratio"] * random.uniform(2, 4), 2)
-        reading["gas_flow_rate"] = round(baselines["gas_flow_rate"] * random.uniform(2, 3), 2)
-    elif anomaly_type == "sand_erosion":
-        reading["sand_rate"] = round(baselines["sand_rate"] * random.uniform(5, 10), 2)
-    elif anomaly_type == "casing_integrity_loss":
-        reading["casing_pressure"] = round(baselines["casing_pressure"] * random.uniform(2, 3.5), 2)
-
-    reading["anomaly_type"] = anomaly_type
-    return reading
+# Topic with environment suffix
+topic = f"{config['kafka']['topic']}-{env}"
 
 
 def generate_reading(well_id, baselines):
@@ -82,11 +56,10 @@ def generate_reading(well_id, baselines):
 
 if __name__ == "__main__":
     print("Starting well data producer...")
-    print(f"Producing to topic: well-production-data")
+    print(f"Producing to topic: {topic}")
     print(f"Number of wells: {len(WELLS)}")
     print("-" * 50)
 
-    topic = "well-production-data"
 
     try:
         while True:
