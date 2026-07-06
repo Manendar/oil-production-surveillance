@@ -1,6 +1,6 @@
 project:
   name: oil-production-surveillance
-  region: ca-central-1
+  region: eu-west-2
 
 kafka:
   broker: localhost:9092
