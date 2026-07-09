@@ -2,10 +2,14 @@ from kafka import KafkaProducer
 import json
 import os
 import time
+import boto3
 import random
 import yaml
 from datetime import datetime, timezone
 from anomaly_injector import inject_anomaly
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from alerting.alert_handler import send_alert
 
 
 # Load well baselines from config
@@ -21,6 +25,10 @@ with open(config_path) as f:
 
 # Environment
 env = os.getenv("ENV", "dev")
+
+# SQS DLQ config
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", config["aws"]["sqs_queue_url"])
+AWS_REGION = config["project"]["region"]
 
 # Kafka producer configuration
 producer = KafkaProducer(
@@ -54,6 +62,23 @@ def generate_reading(well_id, baselines):
     return reading
 
 
+def send_to_dlq(reading, error):
+    """Send failed message to SQS dead letter queue."""
+    try:
+        sqs_client = boto3.client("sqs", region_name=AWS_REGION)
+        sqs_client.send_message(
+            QueueUrl=SQS_QUEUE_URL,
+            MessageBody=json.dumps({
+                "reading": reading,
+                "error": str(error),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        print(f"[DLQ] Message sent to SQS for {reading['well_id']}")
+    except Exception as dlq_error:
+        print(f"[DLQ FAILED] Could not send to SQS: {dlq_error}")
+
+
 if __name__ == "__main__":
     print("Starting well data producer...")
     print(f"Producing to topic: {topic}")
@@ -65,7 +90,12 @@ if __name__ == "__main__":
         while True:
             for well_id, baselines in WELLS.items():
                 reading = generate_reading(well_id, baselines)
-                producer.send(topic, key=well_id, value=reading)
+                try:
+                    future = producer.send(topic, key=well_id, value=reading)
+                    future.get(timeout=10)
+                except Exception as e:
+                    print(f"[ERROR] Failed to send to Kafka: {e}")
+                    send_to_dlq(reading, e)
 
                 if "anomaly_type" in reading:
                     print(f"[ANOMALY] {well_id} - {reading['anomaly_type']} at {reading['timestamp']}")
@@ -78,3 +108,13 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nShutting down producer...")
         producer.close()
+    except Exception as e:
+        print(f"\n[CRITICAL] Producer crashed: {e}")
+        send_alert(
+            well_id="SYSTEM",
+            anomaly_type="producer_crash",
+            severity="critical",
+            value=str(e),
+            threshold="N/A",
+        )
+        raise
