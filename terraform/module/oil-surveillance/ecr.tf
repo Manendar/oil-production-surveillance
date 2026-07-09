@@ -1,6 +1,7 @@
 resource "aws_ecr_repository" "pipeline" {
   name                 = "${var.project_name}-${var.environment}"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
