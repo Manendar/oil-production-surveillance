@@ -149,7 +149,15 @@ If the producer cannot reach Kafka, failed messages are sent to SQS for later re
 
 ## Grafana Dashboards
 
+The dashboard is **auto-provisioned** — it loads automatically when Grafana starts. No manual setup required. Once the producer and influx_writer are running, data appears within seconds.
+
+Login: `http://localhost:3000` (admin / admin12345) → Dashboards → "Oil Production Surveillance"
+
 Live ECG-style dashboards with 5-second auto-refresh:
+
+![Dashboard Top Row](docs/dashboard-1.png)
+
+![Dashboard Bottom Row](docs/dashboard-2.png)
 
 - **Wellhead Pressure (PSI)** — pressure monitoring across all wells
 - **Oil Flow Rate (bbl/day)** — production output per well
