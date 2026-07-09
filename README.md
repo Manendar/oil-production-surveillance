@@ -19,6 +19,7 @@ A real-time data engineering pipeline that monitors oil well sensor data from si
 | Dead Letter Queue | AWS SQS | Failed message recovery |
 | Container Registry | AWS ECR | Docker image storage |
 | Infrastructure | Terraform (modules) | Infrastructure as Code |
+| State Locking | AWS DynamoDB | Terraform state locking to prevent concurrent modifications |
 | CI/CD | GitHub Actions | Automated build, deploy, push to ECR |
 | Containerization | Docker Compose | Local development orchestration |
 
