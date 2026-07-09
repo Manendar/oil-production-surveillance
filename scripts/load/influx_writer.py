@@ -1,11 +1,15 @@
 from kafka import KafkaConsumer
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+import sys
 import json
 import time
 import yaml
 import os
 import logging
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from alerting.alert_handler import send_alert
 
 
 # Logging setup
@@ -144,6 +148,16 @@ def main():
                             f"(value: {anomaly['value']}, threshold: {anomaly['threshold']}, "
                             f"severity: {anomaly['severity']})"
                         )
+
+                        # Send SNS alert for critical anomalies
+                        if anomaly["severity"] == "critical":
+                            send_alert(
+                                well_id=reading["well_id"],
+                                anomaly_type=anomaly["type"],
+                                severity=anomaly["severity"],
+                                value=anomaly["value"],
+                                threshold=anomaly["threshold"],
+                            )
             except ValueError as e:
                 logger.error(f"Connection error: {e}. Reconnecting...")
                 time.sleep(2)
@@ -159,7 +173,17 @@ def main():
         logger.info("\nShutting down InfluxDB writer...")
         consumer.close()
         client.close()
-
+    except Exception as e:
+        logger.critical(f"InfluxDB writer crashed: {e}")
+        send_alert(
+            well_id="SYSTEM",
+            anomaly_type="influx_writer_crash",
+            severity="critical",
+            value=str(e),
+            threshold="N/A",
+        )
+        raise
+    
 
 if __name__ == "__main__":
     main()

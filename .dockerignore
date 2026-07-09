@@ -1,0 +1,12 @@
+venv/
+.git/
+.github/
+__pycache__/
+*.pyc
+terraform/
+grafana/
+spark_jobs/
+.gitignore
+*.md
+*.tfstate
+*.tfvars

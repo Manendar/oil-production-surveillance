@@ -6,6 +6,9 @@ import random
 import yaml
 from datetime import datetime, timezone
 from anomaly_injector import inject_anomaly
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from alerting.alert_handler import send_alert
 
 
 # Load well baselines from config
@@ -78,3 +81,13 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nShutting down producer...")
         producer.close()
+    except Exception as e:
+        print(f"\n[CRITICAL] Producer crashed: {e}")
+        send_alert(
+            well_id="SYSTEM",
+            anomaly_type="producer_crash",
+            severity="critical",
+            value=str(e),
+            threshold="N/A",
+        )
+        raise

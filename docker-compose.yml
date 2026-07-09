@@ -43,6 +43,19 @@ services:
     networks:
       - oil-surveillance-net
 
+  
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "kafka-topics --create --if-not-exists --topic well-production-data-${ENV:-dev} --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 && echo 'Topic created successfully'"
+    networks:
+      - oil-surveillance-net
+
+
   influxdb:
     image: influxdb:2.7
     container_name: influxdb
@@ -92,6 +105,40 @@ services:
       retries: 5
       start_period: 15s
     mem_limit: 512m
+    networks:
+      - oil-surveillance-net
+  
+
+  spark:
+    image: apache/spark:3.5.0
+    container_name: spark
+    restart: unless-stopped
+    command: bash -c "/opt/spark/sbin/start-master.sh && tail -f /opt/spark/logs/*"
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./spark_jobs:/opt/spark-jobs
+      - ./config.yml:/opt/spark-jobs/config.yml
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: eu-west-2
+      ENV: ${ENV:-dev}
+      KAFKA_BROKER: kafka:29092
+      CONFIG_PATH: /opt/spark-jobs/config.yml
+    mem_limit: 2g
+    networks:
+      - oil-surveillance-net
+
+  spark-worker:
+    image: apache/spark:3.5.0
+    container_name: spark-worker
+    restart: unless-stopped
+    command: bash -c "/opt/spark/sbin/start-worker.sh spark://spark:7077 && tail -f /opt/spark/logs/*"
+    depends_on:
+      - spark
+    mem_limit: 2g
     networks:
       - oil-surveillance-net
 
