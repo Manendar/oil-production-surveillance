@@ -15,6 +15,5 @@ influxdb:
   bucket: well-data
 
 aws:
-  s3_bucket: ""
-  sns_topic_arn: "arn:aws:sns:eu-west-2:602340147234:oil-surveillance-alerts-dev"
+  sns_topic_arn: ""
   sqs_queue_url: ""

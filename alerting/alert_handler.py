@@ -14,7 +14,7 @@ with open(config_path) as f:
     config = yaml.safe_load(f)
 
 # AWS config
-SNS_TOPIC_ARN = config["aws"]["sns_topic_arn"]
+SNS_TOPIC_ARN = os.getenv("SNS_TOPIC_ARN", config["aws"]["sns_topic_arn"])
 AWS_REGION = config["project"]["region"]
 
 
