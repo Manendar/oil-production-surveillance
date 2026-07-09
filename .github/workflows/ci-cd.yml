@@ -90,11 +90,10 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push with Kaniko
-        uses: aevea/action-kaniko@master
-        with:
-          registry: ${{ steps.ecr-login.outputs.registry }}
-          image: oil-surveillance-${{ env.ENV }}
-          tag: ${{ github.sha }}
-          cache: true
-          cache_registry: ${{ steps.ecr-login.outputs.registry }}/oil-surveillance-${{ env.ENV }}
+      - name: Build and push to ECR
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/oil-surveillance-${{ env.ENV }}:$IMAGE_TAG .
+          docker push $REGISTRY/oil-surveillance-${{ env.ENV }}:$IMAGE_TAG
